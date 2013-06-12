@@ -1,13 +1,13 @@
 package org.simple.parser.core.annotations;
 
-import org.simple.parser.core.interfaces.IFileParser;
+import org.simple.parser.core.interfaces.FileParser;
 
 
 @java.lang.annotation.Target(value={java.lang.annotation.ElementType.TYPE})
 @java.lang.annotation.Retention(value=java.lang.annotation.RetentionPolicy.RUNTIME)
 public @interface ParserDef {
-
-	public Class<? extends IFileParser> parser();
+	// mandatory
+	public Class<? extends FileParser> parser();
 	//optional
 	public String srcFilePath() default "NULL";
 	public int noOfColumns() 	default -1;
@@ -17,4 +17,5 @@ public @interface ParserDef {
 	public int startCol() 		default  0;
 	public int maxNoOfRows()	default  -1;
 	public String dateformat()  default "dd-MM-yyyy";
+	public boolean ignoreEmptyRows() default true;
 }

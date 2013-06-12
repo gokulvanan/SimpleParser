@@ -1,9 +1,9 @@
 package org.simple.parser;
 
-import org.simple.parser.core.FileBean;
 import org.simple.parser.core.annotations.ColumnDef;
 import org.simple.parser.core.annotations.ParserDef;
 import org.simple.parser.core.formatters.BasicFormatters;
+import org.simple.parser.core.interfaces.IFileBean;
 import org.simple.parser.core.validators.BasicValidators;
 import org.simple.parser.excel.ExcelParser;
 
@@ -12,7 +12,7 @@ srcFilePath="src/test/excelFiles/TestFile.xlsx",
 noOfColumns=4, // 3 columns
 startRow=1 , startCol=1 // ignore row 1 header
 )
-public class SampleModel extends FileBean<SampleModel>{
+public class SampleModel implements IFileBean{
 
 	@ColumnDef(index=1, 
 			validators={BasicValidators.MandatoryValidator.class},

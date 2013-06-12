@@ -7,54 +7,42 @@ import java.util.List;
 
 import org.simple.parser.core.annotations.ParserDef;
 import org.simple.parser.core.interfaces.IFileBean;
-import org.simple.parser.core.interfaces.IFileParser;
+import org.simple.parser.core.interfaces.FileParser;
 import org.simple.parser.exceptions.SimpleParserException;
 
 
 /**
- * Parent class for any Bean mapped to a file 
- * This class provides methods to readFile and retrive List<Beans>   
+ * Main Wrapper class to couple any Bean mapped to a file 
+ * This class provides methods to readFile and retrieve List<Beans>   
  * @author gokulvanan
  *
  */
-public class FileBean<T extends IFileBean> implements IFileBean{
+public class FileBean<T extends IFileBean>{
 
 	@SuppressWarnings("rawtypes")
-	private IFileParser parser;
+	private FileParser parser = null;
 	private File srcFile=null;
-	private List<T> fileObjs;
+	private List<T> fileObjs = null;  
 
+	private FileBean(){	}
 
-	public static <T extends FileBean<T>> T getBean(Class<T> clazz) throws  SimpleParserException{
-		T obj = null;
-		try{
-			obj = clazz.newInstance();
-			obj.initialize(null);
-		}catch(InstantiationException i){
-			throw new SimpleParserException(i);
-		}catch (IllegalAccessException e) {
-			throw new SimpleParserException(e);
-		}
+	public static <T extends IFileBean> FileBean<T> getBean(Class<T> clazz) throws  SimpleParserException{
+		FileBean<T> obj = null;
+		obj = new FileBean<T>();
+		obj.initialize(clazz,null);
 		return obj;
 	}
-	
-	public static <T extends FileBean<T>> T getBean(Class<T> clazz, File newFile) throws  SimpleParserException{
-		T obj = null;
-		try{
-			obj = clazz.newInstance();
-			obj.initialize(newFile);
-		}catch(InstantiationException i){
-			throw new SimpleParserException(i);
-		}catch (IllegalAccessException e) {
-			throw new SimpleParserException(e);
-		}
+
+	public static <T extends IFileBean> FileBean<T> getBean(Class<T> clazz, File newFile) throws  SimpleParserException{
+		FileBean<T> obj = null;
+		obj = new FileBean<T>();
+		obj.initialize(clazz,newFile);
 		return obj;
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	private void initialize(File newFile) throws SimpleParserException{
-		Class<T> childClass=(Class<T>) this.getClass();
-		ParserDef parserAnno = childClass.getAnnotation(ParserDef.class);
+	private void initialize(Class<T> clazz,File newFile) throws SimpleParserException{
+		ParserDef parserAnno = clazz.getAnnotation(ParserDef.class);
 		if(parserAnno == null)		throw new SimpleParserException("ParserDef Annotation not maped to model");
 		if(newFile != null){
 			srcFile = newFile;
@@ -74,7 +62,7 @@ public class FileBean<T extends IFileBean> implements IFileBean{
 			throw new SimpleParserException("Invalid parser class specified in parserDef");
 		}
 		System.out.println("Initializing parser");
-		parser.initialize(parserAnno,this.getClass());
+		parser.initialize(parserAnno,clazz);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -94,7 +82,7 @@ public class FileBean<T extends IFileBean> implements IFileBean{
 		fileObjs = parser.getParsedObjects();
 		return fileObjs;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public void update() throws SimpleParserException{
 		if(fileObjs == null || srcFile == null)	throw new SimpleParserException("Can not updated before reading a file");
@@ -135,8 +123,5 @@ public class FileBean<T extends IFileBean> implements IFileBean{
 		fileObjs.addAll((Collection<? extends T>) objs);
 
 	}
-
-
-
 
 }

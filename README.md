@@ -20,7 +20,7 @@ Example of Model implemenation
 	noOfColumns=3, // 3 columns
 	startRow=2 // ignore row 1 header
 	)	
-	public class SampleModel extends FileBean<SampleModel>{
+	public class SampleModel implements IFileBean{
 	
 		@ColumnDef(index=1, 
 				validators={BasicValidators.MandatoryValidator.class},
@@ -42,7 +42,7 @@ Example of using above model to parser excel file
 	    public void parseExcelFileTest() throws Exception
 	    {
 	    	System.out.println("Starting test ");
-	    	SampleModel model = FileBean.getBean(SampleModel.class);
+	    	FileBean<SampleModel> model = FileBean.getBean(SampleModel.class);
 	    	List<SampleModel> objs =model.read();
 	    	System.out.println(model.isSucessfull());
 	    	if(model.isSucessfull())

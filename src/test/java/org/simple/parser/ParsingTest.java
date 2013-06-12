@@ -16,7 +16,7 @@ public class ParsingTest {
     public void parseExcelFileTest() throws Exception
     {
     	System.out.println("Starting test ");
-    	SampleModel model = FileBean.getBean(SampleModel.class);
+    	FileBean<SampleModel> model = FileBean.getBean(SampleModel.class);
     	List<SampleModel> objs =model.read();
     	System.out.println(model.isSucessfull());
     	if(model.isSucessfull())
