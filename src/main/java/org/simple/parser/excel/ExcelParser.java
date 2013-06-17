@@ -10,8 +10,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,39 +24,32 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.simple.parser.core.ErrorBean;
 import org.simple.parser.core.ErrorBean.ColErrors;
-import org.simple.parser.core.annotations.ColumnDef;
-import org.simple.parser.core.annotations.ParserDef;
-import org.simple.parser.core.formatters.CellFormatter;
-import org.simple.parser.core.interfaces.IFileBean;
 import org.simple.parser.core.interfaces.FileParser;
-import org.simple.parser.core.validators.CellValidator;
+import org.simple.parser.core.interfaces.IFileBean;
+import org.simple.parser.exceptions.ErrorsException;
 import org.simple.parser.exceptions.SimpleParserException;
 
 
 public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 
-	public void parse(File fileObj) throws SimpleParserException {
-
+	public List<T> parse(File fileObj) throws SimpleParserException, ErrorsException {
 		Workbook w = getWorkbook(fileObj,true);// file has to exist for read case
 
-		fileObjList= new ArrayList<T>();
-		errorList=new ArrayList<ErrorBean>();
-		uniqueMap = new HashMap<Integer,Map<Object,Integer>>();
+		List<T> fileObjList= new LinkedList<T>();
+		List<ErrorBean> errorList=new LinkedList<ErrorBean>();
+		Map<Integer,Map<Object,Integer>> uniqueMap = new HashMap<Integer,Map<Object,Integer>>();
 
 		Sheet sheet = w.getSheetAt(sheetNo);
 		noOfRows =(noOfRows == -1) ? sheet.getLastRowNum()+1 : noOfRows;
 
 		int colWidth=this.noOfColumns-this.startCol;
 		if(colWidth <= 0) throw new SimpleParserException("Error startCol value exceeds noOfColumns, Check ParserDef/Property file configuration ");
-
-
 		int actualRowCount=0;
 		L2: for (int i = startRow; i < this.noOfRows; i++)
 		{
 			ErrorBean err = new ErrorBean(i);
 			T obj;
 			try	{
-				System.out.println(ouptutDTOClass.getName());
 				obj = ouptutDTOClass.newInstance();
 			}catch(Exception er)	{
 				throw new SimpleParserException("Error in creating class instace from input class Object using reflection.. Check JVM security settings");
@@ -76,7 +69,7 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 					Object data = (cell == null) ? null : getCellVal(cell);// added to prevent null pointer exception for unused columns
 					if(data == null)emptyCount++;
 					try{
-						if(unique.get(j))	checkUnique(data, j); // unique constraint check
+						if(unique.get(j))	checkUnique(uniqueMap,data, j); // unique constraint check
 						data=validateAndFormat(data, validators.get(j), readFormatters.get(j));
 					}catch(SimpleParserException p){
 						err.addColError(new ColErrors(j, p.getMessage()));// col error
@@ -89,14 +82,15 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 				err.addColError(new ColErrors(j,e.getMessage()));// make sure this obj is not added to fileObjList
 				j=0;
 			}
-			if(!err.hasErrors() )			this.fileObjList.add(obj);// completed full loop without error caseobject
-			else if(!ignoreEmptyRows)		this.errorList.add(err); 
-			else if(emptyCount < colWidth)  this.errorList.add(err); 
+			if(!err.hasErrors() )			fileObjList.add(obj);// completed full loop without error caseobject
+			else if(!ignoreEmptyRows)		errorList.add(err); 
+			else if(emptyCount < colWidth)  errorList.add(err); 
 			else							actualRowCount--;// empty row case
 		}
 
+		if(errorList.size() != 0) throw new ErrorsException("Error", errorList);
 		if(maxNoOfRows != -1 && maxNoOfRows < actualRowCount)	throw new SimpleParserException("Exceed maximun number("+maxNoOfRows+") of permitted rows ");
-
+		return fileObjList;
 	}
 
 	private Object getCellVal(Cell cell) throws SimpleParserException {
@@ -158,9 +152,11 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 		}
 	}
 
-	public boolean writeObjects(List<T> objs,File fileObj) throws SimpleParserException {
+	@Override
+	public boolean writeObjects(List<T> objs,File fileObj,boolean update) throws SimpleParserException, ErrorsException {
 		OutputStream out;
 		boolean fileExist = fileObj.exists();
+		if(update && !fileExist) throw new SimpleParserException("File path ("+fileObj.getAbsolutePath()+")  is invalid. File doesnt exist to udpate");
 		Workbook w = getWorkbook(fileObj,fileExist);
 
 		Sheet sheet = (fileExist)? w.getSheetAt(sheetNo) : w.createSheet();
@@ -168,13 +164,14 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 		if(colWidth <= 0) throw new SimpleParserException("Error startCol value exceeds noOfColumns, Check ParserDef/Property file configuration ");
 
 		int start=startRow;
+		List<ErrorBean> errorList=new LinkedList<ErrorBean>();
 		for (T obj : objs)
 		{
 			ErrorBean err = new ErrorBean(start);
 			Row row = (fileExist)? sheet.getRow(start++) : sheet.createRow(start++);
 			if(row == null) 	throw new SimpleParserException("Row returned null from Sheet for row id "+start);
 			int j=0;
-			uniqueMap = new HashMap<Integer, Map<Object,Integer>>();//added fo checking unique constrain violation
+			Map<Integer,Map<Object,Integer>> uniqueMap = new HashMap<Integer, Map<Object,Integer>>();//added fo checking unique constrain violation
 			try{
 				L1:for (j = this.startCol; j < this.noOfColumns; j++) 
 				{
@@ -183,7 +180,7 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 					if(fld == null) continue L1;// ignore columns not mapped to DTO objects
 					Object data = (cell == null) ? null : fld.get(obj);// added to prevent null pointer exception for unused columns
 					try{
-						if(unique.get(j) && data != null)	checkUnique(data,j); // unique constraint check
+						if(unique.get(j) && data != null)	checkUnique(uniqueMap,data,j); // unique constraint check
 						data=validateAndFormat(data, validators.get(j), writeFormatters.get(j));
 						setCellVal(cell,fld.getType(),data);
 					}catch(SimpleParserException p){
@@ -196,9 +193,11 @@ public class ExcelParser<T extends IFileBean> extends FileParser<T>{
 				j=0;// make sure this obj is not added to fileObjList
 			}
 
-			if(err.hasErrors() )	this.errorList.add(err); //TODO Remove this check
+			if(err.hasErrors() )	errorList.add(err); //TODO Remove this check
 		}
-		if(this.errorList.size() != 0) return false;
+		if(errorList.size() != 0){
+			throw new ErrorsException("Errors",errorList);
+		}
 		else{
 			try{
 				out = new FileOutputStream(fileObj);

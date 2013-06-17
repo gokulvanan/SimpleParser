@@ -14,6 +14,7 @@ import org.simple.parser.core.annotations.ColumnDef;
 import org.simple.parser.core.annotations.ParserDef;
 import org.simple.parser.core.formatters.CellFormatter;
 import org.simple.parser.core.validators.CellValidator;
+import org.simple.parser.exceptions.ErrorsException;
 import org.simple.parser.exceptions.SimpleParserException;
 
 
@@ -44,13 +45,12 @@ public abstract class FileParser<T extends IFileBean> {
 	protected final Map<Integer,Boolean> unique = new HashMap<Integer, Boolean>();
 	protected Class<T> ouptutDTOClass;
 
-	protected List<T> fileObjList=null;
-	protected List<ErrorBean> errorList=null;
-	protected Map<Integer,Map<Object,Integer>> uniqueMap=null;
+//	protected List<T> fileObjList=null;
+//	protected List<ErrorBean> errorList=null;
 
-	public abstract void parse(File file ) throws SimpleParserException;
+	public abstract  List<T>  parse(File file ) throws SimpleParserException, ErrorsException;
 
-	public abstract boolean writeObjects(List<T> objs, File fileObj)	throws SimpleParserException;
+	public abstract boolean writeObjects(List<T> objs, File fileObj, boolean update) throws SimpleParserException, ErrorsException;
 
 
 
@@ -100,19 +100,19 @@ public abstract class FileParser<T extends IFileBean> {
 	}
 	
 
-	public List<T> getParsedObjects() {
-		return this.fileObjList;
-	}
-
-
-	public List<ErrorBean> getErrorObjects() {
-		return this.errorList;
-	}
-
-	public boolean isSucessfull() {
-		return (this.errorList.size() == 0);
-	}
-	
+//	public List<T> getParsedObjects() {
+//		return this.fileObjList;
+//	}
+//
+//
+//	public List<ErrorBean> getErrorObjects() {
+//		return this.errorList;
+//	}
+//
+//	public boolean isSucessfull() {
+//		return (this.errorList.size() == 0);
+//	}
+//	
 
 	protected Object typeConversion(Class<?> clazz,Object val) throws ParseException
 	{
@@ -145,7 +145,7 @@ public abstract class FileParser<T extends IFileBean> {
 		}
 	}
 	
-	protected void checkUnique(Object data,int colIndx) throws SimpleParserException{
+	protected void checkUnique(Map<Integer,Map<Object,Integer>> uniqueMap, Object data,int colIndx) throws SimpleParserException{
 		Map<Object,Integer> m = uniqueMap.get(colIndx);
 		if(m== null)
 		{	
@@ -159,4 +159,5 @@ public abstract class FileParser<T extends IFileBean> {
 		}
 		uniqueMap.put(colIndx, m);
 	}
+
 }

@@ -8,6 +8,7 @@ import java.util.List;
 import org.simple.parser.core.annotations.ParserDef;
 import org.simple.parser.core.interfaces.IFileBean;
 import org.simple.parser.core.interfaces.FileParser;
+import org.simple.parser.exceptions.ErrorsException;
 import org.simple.parser.exceptions.SimpleParserException;
 
 
@@ -23,6 +24,7 @@ public class FileBean<T extends IFileBean>{
 	private FileParser parser = null;
 	private File srcFile=null;
 	private List<T> fileObjs = null;  
+	private List<ErrorBean> errorObjs = null;  
 
 	private FileBean(){	}
 
@@ -67,48 +69,55 @@ public class FileBean<T extends IFileBean>{
 
 	@SuppressWarnings("unchecked")
 	public  List<T> read() throws SimpleParserException{
-		if(fileObjs != null)	return fileObjs;
+		fileObjs = null;
+		errorObjs = null;
 		if(parser == null || srcFile == null)	throw new SimpleParserException("Parser not initialized use FileBean.getBean() to get instance of parser");
-		parser.parse(srcFile);
-		fileObjs = parser.getParsedObjects();
+		try {
+			fileObjs = parser.parse(srcFile);
+		} catch (ErrorsException e) {
+			errorObjs = e.getErrors();
+		}
 		return fileObjs;
 	}
 
 	@SuppressWarnings("unchecked")
 	public  List<T> read(File file) throws SimpleParserException{
 		srcFile = file;
-		if(parser == null || srcFile == null)	throw new SimpleParserException("Parser not initialized use FileBean.getBean() to get instance of parser");
-		parser.parse(srcFile);
-		fileObjs = parser.getParsedObjects();
-		return fileObjs;
+		return read();
 	}
 
 	@SuppressWarnings("unchecked")
 	public void update() throws SimpleParserException{
 		if(fileObjs == null || srcFile == null)	throw new SimpleParserException("Can not updated before reading a file");
-		parser.writeObjects(fileObjs,srcFile);
+		errorObjs = null;
+		try {
+			parser.writeObjects(fileObjs,srcFile,true);
+		} catch (ErrorsException e) {
+			errorObjs=e.getErrors();
+		}
 	}
 
 	@SuppressWarnings("unchecked")
 	public void write(String newFilePath) throws SimpleParserException{
 		if(fileObjs == null)	throw new SimpleParserException("Can not write without any objects");
+		errorObjs = null;
 		File destFile = null;
 		try{
 			destFile = new File(newFilePath);
+			parser.writeObjects(fileObjs,destFile,false);
+		} catch (ErrorsException e) {
+			errorObjs=e.getErrors();
 		}catch(Exception e){
 			throw new SimpleParserException("Error in reading input file "+e.getMessage());
 		}
-		System.out.println(destFile);
-		parser.writeObjects(fileObjs,destFile);
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<ErrorBean> getErrors(){
-		return parser.getErrorObjects();
+		return errorObjs;
 	}
 
 	public boolean isSucessfull(){
-		return parser.isSucessfull();
+		return (errorObjs == null || errorObjs.size() == 0);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -127,6 +136,7 @@ public class FileBean<T extends IFileBean>{
 	public void printErrors() {
 		if(parser == null) return;
 		List<ErrorBean> errors = getErrors();
+		if(errors == null) return;
 		for(ErrorBean err : errors)		System.out.println(err);
 	}
 
