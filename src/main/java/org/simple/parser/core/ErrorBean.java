@@ -56,8 +56,9 @@ public class ErrorBean {
 	public String toString(){
 		StringBuilder build = new StringBuilder(100);
 		build.append("ROW : "+row);
-		build.append("COLUMNS : ");
+		build.append("- {COLUMNS : ");
 		for(ColErrors c : this.colErros) build.append(c.toString());
+		build.append(" }");
 		return build.toString();
 	}
 }

@@ -124,4 +124,10 @@ public class FileBean<T extends IFileBean>{
 
 	}
 
+	public void printErrors() {
+		if(parser == null) return;
+		List<ErrorBean> errors = getErrors();
+		for(ErrorBean err : errors)		System.out.println(err);
+	}
+
 }

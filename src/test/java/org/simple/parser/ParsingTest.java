@@ -12,8 +12,8 @@ import org.simple.parser.core.FileBean;
  */
 public class ParsingTest {
    
-    @Test
-    public void parseExcelFileTest() throws Exception
+    /*@Test
+    public void excelFileTest() throws Exception
     {
     	System.out.println("Starting test ");
     	FileBean<SampleModel> model = FileBean.getBean(SampleModel.class);
@@ -30,15 +30,31 @@ public class ParsingTest {
     		System.out.println(model.isSucessfull());
     		
     	}else{
-    		List<ErrorBean> errors=model.getErrors();
-    		for(ErrorBean err : errors){
-    			System.out.println(err.getRow());
-    			for(ColErrors colerr : err.getColErrors())
-    			{
-    				System.out.println(colerr.getCol());
-    				System.out.println(colerr.getMsg());
-    			}
+    		model.printErrors();
+    	}
+    	
+    	System.out.println("End of test");
+    }*/
+    
+    @Test
+    public void csvFiletest() throws Exception
+    {
+    	System.out.println("Starting test ");
+    	FileBean<CSVModel> model = FileBean.getBean(CSVModel.class);
+    	List<CSVModel> objs =model.read();
+    	System.out.println(model.isSucessfull());
+    	if(model.isSucessfull())
+    	{
+    		System.out.println(objs.size());
+    		for(CSVModel obj : objs){
+    			obj.age=35;
     		}
+//    		model.update();
+    		model.write("src/test/csvFiles/output.csv");
+    		System.out.println(model.isSucessfull());
+    		
+    	}else{
+    		model.printErrors();
     	}
     	
     	System.out.println("End of test");

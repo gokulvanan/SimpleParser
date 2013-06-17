@@ -5,8 +5,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.lang.reflect.Field;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -86,62 +89,82 @@ public class CSVParser<T extends IFileBean> extends FileParser<T>{
 	 */
 	@Override
 	public boolean writeObjects(List<T> objs, File fileObj)
-			throws SimpleParserException {
-		try{
-			boolean fileExist = fileObj.exists();
-			if(!fileExist){
-				boolean created = fileObj.createNewFile();
-				if(!created) throw new SimpleParserException("Error in File Creation for write operation. Check write permissions ");
-			}
-			BufferedWriter buff = new BufferedWriter(new FileWriter(fileObj));
+	throws SimpleParserException {
 
-			int colWidth=this.noOfColumns-this.startCol;
-			if(colWidth <= 0) throw new SimpleParserException("Error startCol value exceeds noOfColumns, Check ParserDef/Property file configuration ");
-
-			int start=startRow, i =0;
-			for (T obj : objs)
-			{
-				i++;
-				ErrorBean err = new ErrorBean(start);
-				int j=0;
-				uniqueMap = new HashMap<Integer, Map<Object,Integer>>();//added fo checking unique constrain violation
-				try{
-					L1:for (j = this.startCol; j < this.noOfColumns; j++) 
-					{
-						Field fld = flds.get(j);
-						if(fld == null) continue L1;// ignore columns not mapped to DTO objects
-						Object data = fld.get(obj);
-						try{
-							if(unique.get(j) && data != null)	checkUnique(data,j); // unique constraint check
-							data=validateAndFormat(data, validators.get(j), writeFormatters.get(j));
-							buff.write(data.toString());
-						}catch(SimpleParserException p){
-							err.addColError(new ColErrors(j, p.getMessage()));// col error
-							break L1;
-						}
+		//validate
+		int colWidth=this.noOfColumns-this.startCol;
+		if(colWidth <= 0) throw new SimpleParserException("Error startCol value exceeds noOfColumns, Check ParserDef/Property file configuration ");
+		List<Object[]> lst = new LinkedList<Object[]>();
+		Object[] rowData = null;
+		int start=startRow, i =0;
+		for (T obj : objs)
+		{
+			i++;
+			ErrorBean err = new ErrorBean(start);
+			int j=0,k=0;
+			uniqueMap = new HashMap<Integer, Map<Object,Integer>>();//added fo checking unique constrain violation
+			try{
+				L1:for (j = this.startCol,k=0; j < this.noOfColumns; j++,k++) 
+				{
+					rowData = new Object[colWidth];
+					Field fld = flds.get(j);
+					if(fld == null) continue L1;// ignore columns not mapped to DTO objects
+					Object data = fld.get(obj);
+					try{
+						if(unique.get(j) && data != null)	checkUnique(data,j); // unique constraint check
+						rowData[k]=validateAndFormat(data, validators.get(j), writeFormatters.get(j));
+					}catch(SimpleParserException p){
+						err.addColError(new ColErrors(j, p.getMessage()));// col error
+						break L1;
 					}
-
-				}catch (Exception e) { // Added to coninute processing other rows
-					err.addColError(new ColErrors(j,e.getMessage()));
-					j=0;// make sure this obj is not added to fileObjList
 				}
-				if(err.hasErrors() )	this.errorList.add(err); //TODO Remove this check
-				else					buff.write("\n");
-				if( i % 50 == 0) 		buff.flush();
+			}catch (Exception e) { // Added to continue processing other rows
+				err.addColError(new ColErrors(j,e.getMessage()));
+				j=0;
 			}
-			buff.flush();
-			buff.close();
-			if(this.errorList.size() != 0){
-				fileObj.delete(); // remove file created in case of errors
-				return false;
+			if(err.hasErrors() )	this.errorList.add(err); 
+			else					lst.add(rowData);
+		}
+		if(this.errorList.size() != 0)	return false;
+		else{
+			//				File create/update
+			try{
+				boolean fileExist = fileObj.exists();
+				if(!fileExist){
+					boolean created = fileObj.createNewFile();
+					if(!created) throw new SimpleParserException("Error in File Creation for write operation. Check write permissions ");
+				}
+				BufferedWriter buff = new BufferedWriter(new FileWriter(fileObj));
+				i=0;
+				for (Object[] row : lst){
+					i++;
+					for (Object obj: row) 	buff.write(obj.toString());
+					if( i % 50 == 0) 		buff.flush();
+				}
+				buff.flush();
+				buff.close();
+				return true;
+			}catch (Exception e) { // Added to coninute processing other rows
+				e.printStackTrace();
+				throw new SimpleParserException(e);
 			}
-			else	return true;
-		}catch(Exception e){
-			throw new SimpleParserException(e);
 		}
 	} 
 
-
-
-
+	@Override
+	protected Object typeConversion(Class<?> clazz,Object val) throws ParseException
+	{
+		if(val == null) 						return null;
+		String name = clazz.getSimpleName();
+		if(name.equalsIgnoreCase("Short") || name.equalsIgnoreCase("short"))	return (short) 	Double.parseDouble(val.toString());
+		if(name.equalsIgnoreCase("Integer") || name.equalsIgnoreCase("int"))	return (int)  	Double.parseDouble(val.toString());
+		if(name.equalsIgnoreCase("Long"))										return (long) 	Double.parseDouble(val.toString());
+		if(name.equalsIgnoreCase("Float"))										return (float)	Double.parseDouble(val.toString());
+		if(name.equalsIgnoreCase("Double"))										return 		  	Double.parseDouble(val.toString());
+		if(name.equalsIgnoreCase("Date")){
+			SimpleDateFormat dateFormat = new SimpleDateFormat(this.dateFormat); 
+			return dateFormat.parse(val.toString());
+		}
+		return val.toString();
+	}
 }
