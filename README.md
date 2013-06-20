@@ -11,7 +11,7 @@ It merely automates reading a File, and enables injecting validation formating r
 validators and formatters in ColDef Annotation.
 
 
-Implementation of Excel parser works. CSV and TSV are yet to be implemented
+Implementation of Excel and CSV parser works.  TSV is yet to be implemented
 
 Example of Model implemenation 
 
